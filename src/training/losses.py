@@ -57,6 +57,8 @@ class FocalLoss(nn.Module):
         p_t = p.gather(1, targets.unsqueeze(1)).squeeze(1)
         
         # Focal term: (1 - p_t)^gamma
+        # Numerical stability: clamp p_t to avoid log(0) and infinite gradients
+        p_t = p_t.clamp(min=1e-7, max=1.0 - 1e-7)
         focal_term = (1 - p_t) ** self.gamma
         
         # Combine
