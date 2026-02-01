@@ -331,23 +331,42 @@ class LabelEncoder:
         self.idx_to_label = {v: k for k, v in self.label_to_idx.items()}
         
     def encode(self, labels: pd.Series) -> np.ndarray:
-        """Convert string labels to integers."""
+        """
+        Convert string labels to integers and ensure they are contiguous 
+        (0, 1, 2...) for XGBoost compatibility.
+        """
         
         # Clean labels
         labels = labels.str.strip()
         
-        # Encode
-        encoded = labels.map(self.label_to_idx)
+        # 1. Map to raw indices using big dictionary
+        raw_encoded = labels.map(self.label_to_idx)
         
         # Check for unknown labels
-        unknown_mask = encoded.isna()
+        unknown_mask = raw_encoded.isna()
         if unknown_mask.any():
             unknown_labels = labels[unknown_mask].unique()
             logger.warning(f"Unknown labels found: {unknown_labels}")
-            # Map unknown to BENIGN as default
-            encoded = encoded.fillna(0)
+            raw_encoded = raw_encoded.fillna(self.label_to_idx['BENIGN'])
             
-        return encoded.values.astype(int)
+        # 2. Force contiguity (0, 1, 2... N)
+        # This is vital for XGBoost 2.0+
+        unique_raw = np.sort(raw_encoded.unique())
+        self.relabel_map = {old: new for new, old in enumerate(unique_raw)}
+        
+        # Update idx_to_label to reflect the NEW contiguous indices
+        # We take the first string label found for each new index
+        new_idx_to_label = {}
+        for old_idx, new_idx in self.relabel_map.items():
+            original_label = self.idx_to_label.get(old_idx, "UNKNOWN")
+            new_idx_to_label[new_idx] = original_label
+        
+        self.idx_to_label = new_idx_to_label
+        
+        # Apply the final mapping
+        final_encoded = raw_encoded.map(self.relabel_map)
+        
+        return final_encoded.values.astype(int)
         
     def decode(self, indices: np.ndarray) -> List[str]:
         """Convert integer indices to string labels."""
