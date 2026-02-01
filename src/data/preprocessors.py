@@ -47,7 +47,7 @@ class NetworkFeatureEngineer:
     def __init__(
         self,
         scaler_type: str = "robust",
-        feature_selection: bool = True,
+        feature_selection: bool = False, # Default OFF for XGBoost stability
         k_best_features: int = 50
     ):
         self.scaler_type = scaler_type

@@ -132,6 +132,15 @@ class ProductionDataLoader(CICIDSDataLoader):
         # Remove spaces from column names
         df.columns = df.columns.str.strip()
         
+        # Standardize nuanced column names (CICIDS versions differ)
+        rename_map = {
+            'Total Fwd Packet': 'Total Fwd Packets',
+            'Total Backward Packets': 'Total Backward Packets',
+            'Total Bwd Packets': 'Total Backward Packets', 
+            'Total Fwd Packets': 'Total Fwd Packets' 
+        }
+        df = df.rename(columns=rename_map)
+        
         # Handle infinite values
         df = df.replace([np.inf, -np.inf], np.nan)
         
