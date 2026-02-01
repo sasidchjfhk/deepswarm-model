@@ -110,21 +110,34 @@ class ProductionDataLoader(CICIDSDataLoader):
                 f"got {len(df.columns)}"
             )
             
-        # Check for required columns
+        # Check for required columns (considering our known variations)
         required_cols = [
-            'Flow Duration', 'Total Fwd Packets', 'Total Backward Packets',
-            'Flow Bytes/s', 'Flow Packets/s', 'Label'
+            'Flow Duration', 'Label', 'Flow Bytes/s', 'Flow Packets/s'
         ]
         
-        # Column names in CICIDS often have spaces/caps issues, we clean them later but check loosely here
-        clean_cols = df.columns.str.strip()
-        missing_cols = []
+        # We also need packet counts, but they have multiple names
+        packet_count_candidates = [
+            'Total Fwd Packets', 'Total Fwd Packet', 
+            'Total Backward Packets', 'Total Bwd packets', 'Total Bwd Packets'
+        ]
+        
+        # Clean current columns for matching
+        clean_cols = df.columns.str.strip().tolist()
+        
+        missing_critical = []
         for req in required_cols:
-            if req not in clean_cols and req not in df.columns:
-                missing_cols.append(req)
-                
-        if missing_cols:
-            logger.warning(f"Potentially missing required columns: {missing_cols}")
+            if req not in clean_cols:
+                missing_critical.append(req)
+        
+        # Check if ANY forward and ANY backward packet count exists
+        has_fwd = any(c in clean_cols for c in ['Total Fwd Packets', 'Total Fwd Packet'])
+        has_bwd = any(c in clean_cols for c in ['Total Backward Packets', 'Total Bwd packets', 'Total Bwd Packets'])
+        
+        if not has_fwd: missing_critical.append('Total Fwd Packets')
+        if not has_bwd: missing_critical.append('Total Backward Packets')
+        
+        if missing_critical:
+            logger.warning(f"Potentially missing required columns: {missing_critical}")
             
     def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Clean and preprocess data."""
@@ -140,6 +153,9 @@ class ProductionDataLoader(CICIDSDataLoader):
             'Fwd Packets/s': 'Flow Packets/s' 
         }
         df = df.rename(columns=rename_map)
+        
+        # DEDUPLICATE: Prevent duplicate column names (XGBoost crash fix)
+        df = df.loc[:, ~df.columns.duplicated()]
 
         # CRITICAL: Prevent Data Leakage
         # These columns must NEVER be seen by the model as they allow 'cheating'

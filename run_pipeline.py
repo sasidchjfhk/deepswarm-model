@@ -74,7 +74,7 @@ def main():
     parser.add_argument("--data-dir", type=str, required=True)
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--use-gpu", action="store_true")
-    parser.add_argument("--skip-dl", action="store_true", help="Skip Deep Learning phase")
+    parser.add_argument("--skip-dl", "--nodl", action="store_true", help="Skip Deep Learning phase")
     args = parser.parse_args()
     
     # Setup
