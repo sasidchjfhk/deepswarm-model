@@ -26,6 +26,34 @@ class CICIDSDataLoader:
         "Thursday": "placeholder_thu",
         "Friday": "placeholder_fri"
     }
+
+class ProductionDataLoader(CICIDSDataLoader):
+    """Wrapper for backward compatibility."""
+    def load_all(self):
+        """Load all available days joined."""
+        days = ['monday', 'tuesday', 'thursday', 'friday'] # Corrected to available files
+        parts = []
+        for day in days:
+            try:
+                df = self.load_and_validate(day)
+                parts.append(df)
+            except Exception as e:
+                logger.warning(f"Could not load {day}: {e}")
+        
+        if not parts:
+            raise ValueError("No data loaded!")
+            
+        full_df = pd.concat(parts, ignore_index=True)
+        return full_df
+    
+    def validate_schema(self) -> bool:
+        """Validate the loaded data schema."""
+        # Check first file to validate schema
+        try:
+            self.load_and_validate('monday') # Assume monday exists
+            return True
+        except Exception:
+            return False
     
     def __init__(self, data_dir: Path):
         self.data_dir = Path(data_dir)

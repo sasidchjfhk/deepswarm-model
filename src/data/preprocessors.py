@@ -123,11 +123,13 @@ class NetworkFeatureEngineer:
         
         return self
         
-    def transform(self, X: pd.DataFrame) -> np.ndarray:
+    def transform(self, X: pd.DataFrame, return_df: bool = False) -> Union[np.ndarray, pd.DataFrame]:
         """
         Transform data using fitted transformers.
         
-        Use this for validation, test, and production data.
+        Args:
+            X: Input dataframe
+            return_df: If True, returns pandas DataFrame with column names (Good for XGBoost)
         """
         
         if self.scaler is None:
@@ -146,16 +148,20 @@ class NetworkFeatureEngineer:
         if self.feature_selector is not None:
             X_scaled = self.feature_selector.transform(X_scaled)
             
+        if return_df:
+            return pd.DataFrame(X_scaled, columns=self.selected_features)
+            
         return X_scaled
         
     def fit_transform(
         self,
         X_train: pd.DataFrame,
-        y_train: pd.Series
-    ) -> np.ndarray:
+        y_train: pd.Series,
+        return_df: bool = False
+    ) -> Union[np.ndarray, pd.DataFrame]:
         """Fit and transform training data."""
         self.fit(X_train, y_train)
-        return self.transform(X_train)
+        return self.transform(X_train, return_df=return_df)
         
     def _select_core_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """Select core features, handling missing columns."""
