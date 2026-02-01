@@ -43,11 +43,14 @@ class IDSDataset(Dataset):
         y = self.y[idx]
         
         # Apply augmentation (only for training)
-        if self.augment:
-            x = self._augment(x)
-            
+        X = self.X[idx]
+        y = self.y[idx]
+        
+        # SAFETY: Replace NaN/Inf with 0.0 to prevent training crash
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        
         if self.transform:
-            x = self.transform(x)
+            X = self.transform(X)
             
         return x, y
         
