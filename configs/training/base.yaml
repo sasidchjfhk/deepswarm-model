@@ -1,0 +1,65 @@
+# configs/training/base.yaml
+defaults:
+  - model: efficientnet
+  - _self_
+
+# Paths
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  features_dir: "data/features"
+
+# Dataset
+dataset:
+  name: "cicids2017"
+  train_days: ["Monday", "Tuesday", "Wednesday", "Thursday"]
+  val_day: "Friday"
+  test_datasets: ["cicids2017_friday", "unsw_nb15", "nsl_kdd"]
+  
+# Training
+training:
+  batch_size: 256
+  epochs: 100
+  learning_rate: 1e-3
+  optimizer: "adamw"
+  scheduler: "cosine"
+  early_stopping_patience: 10
+  gradient_clip_val: 1.0
+  
+  # Distributed
+  distributed: false
+  num_gpus: 1
+  precision: "16-mixed"
+  
+# Validation
+validation:
+  batch_size: 512
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - auc_roc
+  
+# Callbacks
+callbacks:
+  model_checkpoint:
+    monitor: "val_f1_score"
+    mode: "max"
+    save_top_k: 3
+  early_stopping:
+    monitor: "val_loss"
+    patience: 10
+    mode: "min"
+    
+# Logging
+logging:
+  mlflow:
+    tracking_uri: "http://localhost:5000"
+    experiment_name: "swarm-ids-efficientnet"
+  wandb:
+    project: "swarm-ids"
+    entity: "your-team"
+    
+# Random seed
+seed: 42
