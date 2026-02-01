@@ -44,13 +44,14 @@ class SwarmXGBoost:
             'device': 'cuda' if use_gpu else 'cpu',
             'max_depth': 8,         # Deeper trees for complex attacks
             'learning_rate': 0.1,
-            'n_estimators': 1000,   # Will use early stopping
+            'n_estimators': 1000,   
             'subsample': 0.8,
             'colsample_bytree': 0.8,
             'reg_alpha': 0.1,       # L1 regularization
             'reg_lambda': 1.0,      # L2 regularization
             'n_jobs': -1,
-            'eval_metric': ['mlogloss', 'merror'] if num_classes > 2 else ['logloss', 'auc']
+            'eval_metric': ['mlogloss', 'merror'] if num_classes > 2 else ['logloss', 'auc'],
+            'early_stopping_rounds': 50 # Pass to constructor for XGBoost 2.0+
         }
         
         if params:
@@ -75,7 +76,10 @@ class SwarmXGBoost:
             self.feature_names = X_train.columns.tolist()
             
         # Initialize Scikit-Learn wrapper
-        self.model = xgb.XGBClassifier(**self.params)
+        # We merge early_stopping_rounds into the constructor params
+        fit_params = self.params.copy()
+        fit_params['early_stopping_rounds'] = early_stopping_rounds
+        self.model = xgb.XGBClassifier(**fit_params)
         
         # Train
         eval_set = [(X_train, y_train)]
@@ -85,7 +89,6 @@ class SwarmXGBoost:
         self.model.fit(
             X_train, y_train,
             eval_set=eval_set,
-            early_stopping_rounds=early_stopping_rounds,
             verbose=10 if verbose else False
         )
         
