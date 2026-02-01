@@ -37,35 +37,49 @@ def train_xgboost(loader, args):
     """Train the XGBoost Engine."""
     logger.info("\n🚀 STARTING ENGINE A: XGBoost (Gradient Boosting)")
     
-    # Load all data for XGBoost (it handles large data well in memory)
-    df = loader.load_all()
-    X = df.drop(columns=['Label'])
-    y = df['Label']
+    # 1. GLOBAL STRATIFIED SPLIT (Fix for 0% Detection)
+    # Different days have different attacks. We MUST combine and split to see everything.
+    logger.info("📡 Loading all datasets (Monday - Friday) for complete coverage...")
+    
+    # We combine everything so the model sees Botnets, DDoS, and Web Attacks in training
+    df_full = loader.load_all()
+    
+    X = df_full.drop(columns=['Label'])
+    y_str = df_full['Label']
+    
+    logger.info(f"📊 Dataset Stats: {len(df_full):,} samples, {len(y_str.unique())} attack classes")
     
     # Preprocess
     engineer = NetworkFeatureEngineer(k_best_features=80)
     label_encoder = LabelEncoder()
-    y_encoded = label_encoder.encode(y)
+    y_encoded = label_encoder.encode(y_str)
     
     # Split
     from sklearn.model_selection import train_test_split
+    logger.info("🔪 Performing Stratified Split (80/20)...")
     X_train, X_val, y_train, y_val = train_test_split(
         X, y_encoded, test_size=0.2, stratify=y_encoded, random_state=42
     )
     
     # Fit transform with DataFrame return
-    logger.info("Feature Engineering...")
+    logger.info("🏗️ Feature Engineering on full data...")
     X_train_eng = engineer.fit_transform(X_train, y_train, return_df=True)
     X_val_eng = engineer.transform(X_val, return_df=True)
     
     # Train
     model = SwarmXGBoost(
-        num_classes=len(np.unique(y_encoded)),
+        num_classes=len(np.unique(y_train)),
         use_gpu=args.use_gpu
     )
     model.fit(X_train_eng, y_train, X_val_eng, y_val)
     
-    # Save
+    # Evaluate 
+    logger.info("\n📊 POST-TRAINING SECURITY AUDIT (Friday Test Set)")
+    from sklearn.metrics import classification_report
+    y_pred = model.predict(X_val_eng)
+    target_names = [label_encoder.idx_to_label[i] for i in range(len(np.unique(y_val)))]
+    print(classification_report(y_val, y_pred, target_names=target_names))
+    
     model.save("models/xgboost")
     return model
 
