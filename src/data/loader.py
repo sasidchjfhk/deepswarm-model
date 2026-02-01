@@ -132,15 +132,22 @@ class ProductionDataLoader(CICIDSDataLoader):
         # Remove spaces from column names
         df.columns = df.columns.str.strip()
         
-        # Standardize nuanced column names (CICIDS versions differ)
+        # Standardize exact column names found in user dataset
         rename_map = {
             'Total Fwd Packet': 'Total Fwd Packets',
-            'Total Backward Packets': 'Total Backward Packets',
-            'Total Bwd Packets': 'Total Backward Packets', 
-            'Total Fwd Packets': 'Total Fwd Packets' 
+            'Total Bwd packets': 'Total Backward Packets',
+            'Total Bwd Packets': 'Total Backward Packets',
+            'Fwd Packets/s': 'Flow Packets/s' 
         }
         df = df.rename(columns=rename_map)
-        
+
+        # CRITICAL: Prevent Data Leakage
+        # These columns must NEVER be seen by the model as they allow 'cheating'
+        leakage_cols = [
+            'id', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 
+            'Timestamp', 'Attempted Category', 'Unnamed: 0'
+        ]
+        df = df.drop(columns=[c for c in leakage_cols if c in df.columns])        
         # Handle infinite values
         df = df.replace([np.inf, -np.inf], np.nan)
         
